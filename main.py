@@ -15,7 +15,7 @@ def Place(turn, col, grid):
 			return 0
 
 
-# Checks if the game is won..... a 0 means game has been won, 1 means keep playing
+# Checks if the game is won..... a R means game has been won by R, Y means game was won by Y, 1 means keep playing
 # TODO - check if all positions are being checked correctly... it's likely one of the edge positions isn't being checked
 def CheckGrid(grid):
 	# Check vertical
@@ -35,10 +35,10 @@ def CheckGrid(grid):
 
 			if rCount==4:
 				print("Red wins vertical");
-				return 0
+				return 'R'
 			elif yCount==4:
 				print("Yellow wins vertical")
-				return 0
+				return 'Y'
 
 	# Check horizontal
 	for r in range (0, 6):
@@ -57,10 +57,10 @@ def CheckGrid(grid):
 
 			if rCount==4:
 				print("Red wins horizontal");
-				return 0
+				return 'R'
 			elif yCount==4:
 				print("Yellow wins horizontal")
-				return 0
+				return 'Y'
 
 	# Check horizontals
 	downRight = [[0,0], [0,1], [0,2], [0,3], [1,0], [2,0]]
@@ -85,10 +85,10 @@ def CheckGrid(grid):
 
 			if rCount==4:
 				print("Red wins diagonal (down right)")
-				return 0
+				return 'R'
 			elif yCount==4:
 				print("Yellow wins diagonal (down right)")
-				return 0
+				return 'Y'
 
 	upLeft = [[3,0], [4,0], [5,0], [5,1], [5,2], [5,3]]
 	for pos in upLeft:
@@ -112,16 +112,24 @@ def CheckGrid(grid):
 
 			if rCount==4:
 				print("Red wins diagonal (up left)");
-				return 0
+				return 'R'
 			elif yCount==4:
 				print("Yellow wins diagonal (up left)")
-				return 0
+				return 'Y'
 
 
 	return 1
 
 
 
+def BestPlay(grid):
+	for c in range (0, 7):
+		g = np.copy(grid)
+		Place('R', c, g)
+		if CheckGrid(g) == 'R':
+			return c;
+	return randint(0,6)
+	
 
 
 # TODO - init function
@@ -132,8 +140,11 @@ grid = np.repeat('*', 7*6).reshape(6, 7)
 turn = 'R'
 print(grid, '\n')
 while (CheckGrid(grid) == 1):
-	while(Place(turn, randint(0,6), grid) == 0):
-		pass
+	if turn == 'R':
+		Place(turn, BestPlay(grid), grid)
+	else:
+		while(Place(turn, randint(0,6), grid) == 0):
+			pass
 
 	print(grid, '\n')
 
