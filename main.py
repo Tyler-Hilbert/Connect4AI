@@ -139,7 +139,7 @@ def BestPlay(grid):
 	# Check for win next play
 	for c in range (0, 7):
 		g = np.copy(grid)
-		Place('R', c, g, gameDisplay)
+		Place('R', c, g, False)
 		if CheckGrid(g, gameDisplay) == 'R':
 			return c
 	
@@ -152,7 +152,7 @@ def BestPlay(grid):
 		# Check each possible opponent next move
 		for opponentC in range (0, 7):
 			opponentG = np.copy(g)
-			Place('Y', opponentC, opponentG, gameDisplay)
+			Place('Y', opponentC, opponentG, False)
 			if CheckGrid(opponentG, False) == 'Y':
 				badMove = True # Determine the move shouldn't be played
 				break
@@ -180,7 +180,8 @@ def PlayGame(gameDisplay):
 	gameWinner = 1		# Who the game was won by..... A 1 will indicate the game is still being played.. This is updated in loop
 	while (gameWinner== 1):
 		if turn == 'R':
-			Place(turn, BestPlay(grid), grid, gameDisplay)
+			while(Place(turn, BestPlay(grid), grid, gameDisplay) == 0): # TODO - find more efficient way to handle cpu seeing no good moves than just looping until it does something
+				pass
 		else:
 			while(Place(turn, randint(0,6), grid, gameDisplay) == 0):
 				pass
@@ -200,13 +201,13 @@ def PlayGame(gameDisplay):
 	return gameWinner
 
 
-numberOfTurns = 1000
+numberOfGames = 1000
 rWins = 0
 yWins = 0
 tieCount = 0
-gameDisplay = False		# If the game should print boards and info
+gameDisplay = True		# If the game should print boards and info
 
-for i in range (1, numberOfTurns+1):
+for i in range (1, numberOfGames+1):
 	winner = PlayGame(gameDisplay)
 	if winner == 'R':
 		rWins += 1
@@ -215,4 +216,4 @@ for i in range (1, numberOfTurns+1):
 	else:
 		tieCount += 1
 
-print ("R win ratio: ", rWins, " to ", numberOfTurns-tieCount, " tie count:", tieCount)
+print ("R win ratio: ", rWins, " to ", numberOfGames-tieCount, " tie count:", tieCount)
