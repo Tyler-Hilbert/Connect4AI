@@ -1,5 +1,6 @@
 import numpy as np
 from random import *
+import random
 
 
 
@@ -135,14 +136,34 @@ def CheckGrid(grid, gameDisplay):
 
 
 def BestPlay(grid):
+	# Check for win next play
 	for c in range (0, 7):
 		g = np.copy(grid)
 		Place('R', c, g, gameDisplay)
 		if CheckGrid(g, gameDisplay) == 'R':
-			return c;
+			return c
 	
-	return randint(0,6)
-	
+	# Check for pieces that cause a loss next turn
+	possibleMoves = []
+	for c in range (0, 7):
+		g = np.copy(grid)
+		badMove = False
+		Place('R', c, g, gameDisplay)
+		# Check each possible opponent next move
+		for opponentC in range (0, 7):
+			opponentG = np.copy(g)
+			Place('Y', opponentC, opponentG, gameDisplay)
+			if CheckGrid(opponentG, False) == 'Y':
+				badMove = True # Determine the move shouldn't be played
+				break
+
+		if badMove == False:
+			possibleMoves.append(c)
+
+	if len(possibleMoves):
+		return random.choice(possibleMoves)
+
+	return randint(0, 6)	
 
 # Plays game. 
 # Return 'Y' for yellow win and 'R' for red (AI) win
