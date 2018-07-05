@@ -2,6 +2,7 @@ import numpy as np
 from random import *
 import random
 
+from external_input import *
 
 
 # Prints msg to console if enable is true
@@ -178,12 +179,16 @@ def PlayGame(gameDisplay):
 		PrintIfEnabled(grid, gameDisplay)
 		PrintIfEnabled('\n', gameDisplay)
 	gameWinner = 1		# Who the game was won by..... A 1 will indicate the game is still being played.. This is updated in loop
-	while (gameWinner== 1):
+	while (gameWinner == 1):
 		if turn == 'R':
-			while(Place(turn, BestPlay(grid), grid, gameDisplay) == 0): # TODO - find more efficient way to handle cpu seeing no good moves than just looping until it does something
-				pass
+			if aiVersion == "hardcode":
+				while(Place(turn, BestPlay(grid), grid, gameDisplay) == 0): # TODO - find more efficient way to handle cpu seeing no good moves than just looping until it does something
+					pass
+			elif aiVersion == "external":
+				while (Place(turn, ExternalInput(grid), grid, gameDisplay) == 0):
+					pass
 		else:
-			while(Place(turn, randint(0,6), grid, gameDisplay) == 0):
+			while(Place(turn, int(input("")), grid, gameDisplay) == 0):
 				pass
 
 		gameWinner = CheckGrid(grid, gameDisplay)
@@ -201,11 +206,14 @@ def PlayGame(gameDisplay):
 	return gameWinner
 
 
+
+# Setup game 
 numberOfGames = 1000
 rWins = 0
 yWins = 0
 tieCount = 0
 gameDisplay = True		# If the game should print boards and info
+aiVersion = "external" # "hardcode" for looking steps ahead or "external" to get input from ai in external_input.py
 
 for i in range (1, numberOfGames+1):
 	winner = PlayGame(gameDisplay)
