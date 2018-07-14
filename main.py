@@ -3,15 +3,21 @@ from random import *
 import random
 from external_input import *
 import model
+import tqdm
 
 Q1 = model.createModel()
 Q2 = model.createModel()
 try:
 	Q1.load_weights("Q1.h5", by_name=True)
-	Q2.load_weights("Q2.h5", by_name=True)
-	print("Model weights loaded")
+	print("Model Q1 weights loaded")
 except Exception as e:
-	print("Model weights failed to load")
+	print("Model Q1 weights failed to load")
+	print(e)
+try:
+	Q2.load_weights("Q2.h5", by_name=True)
+	print("Model Q2 weights loaded")
+except Exception as e:
+	print("Model Q2 weights failed to load")
 	print(e)
 # Prints msg to console if enable is true
 def PrintIfEnabled(msg, enabled):
@@ -177,130 +183,187 @@ def BestPlay(grid):
 # Plays game. 
 # Return 'Y' for yellow win and 'R' for red (AI) win
 # Param gameDisplay: If information about the game should be printed
-def PlayGame(gameDisplay, samples, epsilon):
+def PlayGame(gameDisplay, samples, epsilon, trainingPlayer, length, gamePause):
 	# Create Grid
 	grid = np.repeat('*', 7*6).reshape(6, 7)
 
 	# Play game
-	turn = 'R'
+	if random.randint(0,1) == 0:
+		turn = 'R'
+	else:
+		turn = 'Y'
 	if gameDisplay:
 		PrintIfEnabled(grid, gameDisplay)
 		PrintIfEnabled('\n', gameDisplay)
+		if gamePause:
+			input()
 	gameWinner = 1		# Who the game was won by..... A 1 will indicate the game is still being played.. This is updated in loop
 	while (gameWinner == 1):
 		state = 0
 		# Create grids
 		OneHotGrid = np.zeros((1,6, 7, 3))
+		mask = np.ones((1,7,1))
 		# Fill grid with what pieces are taken
 		for c in range (0, 7):
 			for r in range (0, 6):
 				if grid[r, c] == 'Y':
 					OneHotGrid[0, r, c, 1] = 1 
+					if r == 0:
+						mask[0,c,0] = 0
 				elif grid[r, c] == 'R':
 					OneHotGrid[0, r, c, 2] = 1
+					if r == 0:
+						mask[0,c,0] = 0
 				else:
 					OneHotGrid[0, r, c, 0] = 1
-		gameBuffer.append([OneHotGrid])
-		if (samples > 1):
-			gameBuffer[samples].append(OneHotGrid)
-			gameBuffer[samples-1][1] = OneHotGrid
-			gameBuffer[samples-2][1] = OneHotGrid
-		elif(samples == 1):
-			gameBuffer[samples].append(OneHotGrid)
-			gameBuffer[samples-1][1] = OneHotGrid
-		elif(samples == 0):
-			gameBuffer[samples].append(OneHotGrid)
+		gameBuffer=[[OneHotGrid, mask]]
+		gameBuffer.append([OneHotGrid, mask])
 		while (state == 0):
 			if turn == 'R':
-				guess = Q1.predict(OneHotGrid)
+				guess = Q1.predict([OneHotGrid,mask])
 			else:
-				guess = Q2.predict(OneHotGrid)
-			gameBuffer[samples].append(guess)
+				guess = Q2.predict([OneHotGrid,mask])
+			
+			gameBuffer.append(guess)
 			guessColumn = np.argmax(guess)
-			if epsilon < random.random():
+			if epsilon > random.random() and turn == trainingPlayer:
 				guessColumn = random.randint(0,6)
-			gameBuffer[samples].append(guessColumn)
+			gameBuffer.append(guessColumn)
 			state = Place(turn, guessColumn, grid, gameDisplay)
 		gameWinner = CheckGrid(grid, gameDisplay)
 		if (gameWinner == 1):
-			gameBuffer[samples].append(turnReward)
+			gameBuffer.append(turnReward)
 			
-		elif (gameWinner == turn):
-			gameBuffer[samples].append(1)
-			gameBuffer[samples-1][3] = 0
+		elif (gameWinner == turn and gameWinner == trainingPlayer):
+			gameBuffer.append(1)
 		elif (gameWinner == "T"):
-			gameBuffer[samples-1][3] = 0.1
-
+			gameBuffer.append(0.2)
+		else:
+			if trainingPlayer == "R":
+				gameBuffer1[-1][3] = 0
+			else:
+				gameBuffer2[-1][3] = 0
+		if trainingPlayer == "R" and turn == "R":
+			gameBuffer1.append(gameBuffer)
+			samples += 1
+		elif trainingPlayer == "Y" and turn == "Y":
+			gameBuffer2.append(gameBuffer)
+			samples += 1
 		if gameDisplay:
 			PrintIfEnabled(grid, gameDisplay)
 			PrintIfEnabled('\n', gameDisplay)
-
+			if gamePause:
+				input()
 		# Update turn
 		if turn == 'R':
 			turn = 'Y'
 		else:
 			turn = 'R'
-		samples += 1
-	return gameWinner, samples
+		length += 1
+	return gameWinner, samples, length
 
 
 
 # Setup game 
-nEpochs = 50
-nSamples = 20000 #Split between AIs
-batch_size = 2000
+nEpochs = 500
+nSamples = 10000#Split between AIs
+batch_size = 1000
 gameDisplay = False		# If the game should print boards and info
+gamePause = True		# If game displays should pause after displaying
 turnReward = .01
-gamma = .99
-epsilon = 0.1
-epsilonDecay = .9
+gamma = .98
+epsilon = 0.2
+epsilonDecay = .99
 
 
 
 for i in range (1, nEpochs+1):
-	gameBuffer = []
-	samples = 0
-	numberOfGames = 0
-	rWins = 0
-	yWins = 0
-	tieCount = 0
-	while (samples < nSamples):
-		(winner, samples) = PlayGame(gameDisplay, samples, epsilon)
-		numberOfGames += 1
+	print("\nEpoch ", i)
+	gameBuffer1 = []
+	gameBuffer2 = []
+	samples1 = 0
+	samples2 = 0
+	numberOfGames1 = 0
+	numberOfGames2 = 0
+	length1 = 0
+	length2 = 0
+	rWins1 = 0
+	yWins1 = 0
+	tieCount1 = 0
+	rWins2 = 0
+	yWins2 = 0
+	tieCount2 = 0
+	print("Red playing")
+	if not gameDisplay:
+		pbar = tqdm.tqdm(total = nSamples)
+		lastI = 0
+	while (samples1 < nSamples):
+		(winner, samples1, length1) = PlayGame(gameDisplay, samples1, epsilon, "R", length1, gamePause)
+		numberOfGames1 += 1
+		if not gameDisplay:
+			pbar.update(samples1 - lastI)
+			lastI = samples1
 		if winner == 'R':
-			rWins += 1
+			rWins1 += 1
 		elif winner == 'Y':
-			yWins += 1
+			yWins1 += 1
 		else:
-			tieCount += 1
-	buffer1 = []
-	buffer2 = []
-	for i in range(0, nSamples, 2):
-		buffer1.append(gameBuffer[i])
-		buffer2.append(gameBuffer[i+1])
-	array1 = np.zeros((int(nSamples/2),6,7,3))
-	array2 = np.zeros((int(nSamples/2),7))
-	for (i,state) in enumerate(buffer1):
-		array1[i] = state[0]
+			tieCount1 += 1
+	if not gameDisplay:
+		pbar.close()
+	print("\nYellow playing")
+	if not gameDisplay:
+		pbar = tqdm.tqdm(total = nSamples)
+		lastI = 0
+	while (samples2 < nSamples):
+		(winner, samples2, length2) = PlayGame(gameDisplay, samples2, epsilon, "Y", length2, gamePause)
+		numberOfGames2 += 1
+		if not gameDisplay:
+			pbar.update(samples2 - lastI)
+			lastI = samples2
+		if winner == 'R':
+			rWins2 += 1
+		elif winner == 'Y':
+			yWins2 += 1
+		else:
+			tieCount2 += 1
+	if not gameDisplay:
+		pbar.close()
+	array1 = np.zeros((int(nSamples),6,7,3))
+	maskarray = np.zeros((int(nSamples),7,1))
+	array2 = np.zeros((int(nSamples),7,1))
+	for (i,state) in enumerate(gameBuffer1[:nSamples]):
+		array1[i] = state[0][0]
+		maskarray[i] = state[0][1]
 		array2[i] = state[2]
 		guess = np.argmax(state[2])
 		Q = state[3]
 		if state[3] == .01:
 			Q += gamma*np.amax(Q1.predict(state[1]))
 		array2[i][guess] = Q
-	Q1.fit(x = array1, y = array2, batch_size = batch_size)
-	array1 = np.zeros((int(nSamples/2),6,7,3))
-	array2 = np.zeros((int(nSamples/2),7))
-	for (i,state) in enumerate(buffer2):
-		array1[i] = state[0]
+	print("\nRed Training")
+	Q1.fit(x = [array1, maskarray], y = array2, batch_size = batch_size)
+	print ("R win ratio: ", rWins1, " to ", numberOfGames1-tieCount1, "\tPercent: ", round(100*rWins1/(numberOfGames1-tieCount1),2))
+	print("Avg game length: ", round(length1/numberOfGames1,2), "\tTie count: ", tieCount1, "\tTie Percent: ", round(100*tieCount1/numberOfGames1,2))
+	print("Epsilon: ", round(epsilon, 4))
+	array1 = np.zeros((int(nSamples),6,7,3))
+	maskarray = np.zeros((int(nSamples),7,1))
+	array2 = np.zeros((int(nSamples),7,1))
+	for (i,state) in enumerate(gameBuffer2[:nSamples]):
+		array1[i] = state[0][0]
+		maskarray[i] = state[0][1]
 		array2[i] = state[2]
 		guess = np.argmax(state[2])
 		Q = state[3]
 		if state[3] == .01:
 			Q += gamma*np.amax(Q2.predict(state[1]))
 		array2[i][guess] = Q
-	Q2.fit(x = array1, y = array2, batch_size = len(array1))
-	print ("R win ratio: ", rWins, " to ", numberOfGames-tieCount, " tie count:", tieCount)
+	print("\nYellow Training")
+	Q2.fit(x = [array1, maskarray], y = array2, batch_size = len(array1))
+	print ("Y win ratio: ", yWins2, " to ", numberOfGames2-tieCount2, "\tPercent: ", round(100*yWins2/(numberOfGames2-tieCount2),2))
+	print("Avg game length: ", round(length2/numberOfGames2,2), "\tTie count: ", tieCount2, "\tTie Percent: ", round(100*tieCount2/numberOfGames2,2))
+	print("Epsilon: ", round(epsilon, 4))
 	epsilon *= epsilonDecay
 	Q1.save("Q1.h5")
 	Q2.save("Q2.h5")
+	print("\nUpdated weights saved")

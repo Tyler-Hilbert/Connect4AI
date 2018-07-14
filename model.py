@@ -8,15 +8,18 @@ from keras import backend as K
 
 def createModel():
 	in1 = Input(shape=(6,7,3))
-	x = Conv2D(64, (3,3), activation = 'relu', padding = 'same')(in1)
-	x = Conv2D(64, (3,3), activation = 'relu', padding = 'same')(x)
-	x = Conv2D(64, (3,3), activation = 'relu', padding = 'same')(x)
-	x = Conv2D(64, (3,3), activation = 'relu', padding = 'same')(x)
-	x = Conv2D(64, (3,3), activation = 'relu', padding = 'same')(x)
-	x = Conv2D(64, (3,3), activation = 'relu', padding = 'same')(x)
-	x = Flatten()(x)
-	out = Dense(7, activation='sigmoid')(x)
-	model = Model(inputs=in1, outputs=out)
+	in2 = Input(shape=(7,1))
+	x = Conv2D(128, (3,3), activation = 'relu', padding = 'same')(in1)
+	x = Conv2D(128, (3,3), activation = 'relu', padding = 'same')(x)
+	x = Conv2D(128, (3,3), activation = 'relu', padding = 'same')(x)
+	x = Conv2D(128, (3,3), activation = 'relu', padding = 'same')(x)
+	x = Conv2D(128, (3,1), activation = 'relu', padding = 'valid')(x)
+	x = Conv2D(128, (3,1), activation = 'relu', padding = 'valid')(x)
+	x = Conv2D(128, (2,1), activation = 'relu', padding = 'valid')(x)
+	x = Conv2D(1, (1,1), activation = 'sigmoid')(x)
+	x = Reshape((7,1))(x)
+	out = Multiply()([x, in2]) #Mask invalid moves
+	model = Model(inputs=[in1, in2], outputs=out)
 	model.compile(loss='mean_squared_error',optimizer='adam')
-	model.summary()
+	#model.summary()
 	return model
