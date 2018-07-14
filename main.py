@@ -1,7 +1,6 @@
 import numpy as np
 from random import *
 import random
-from external_input import *
 import model
 import tqdm
 
