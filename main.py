@@ -227,6 +227,11 @@ def PlayGame(gameDisplay, samples, epsilon, trainingPlayer, length, gamePause):
 			guessColumn = np.argmax(guess)
 			if epsilon > random.random() and turn == trainingPlayer:
 				guessColumn = random.randint(0,6)
+			# Overwrite Yellow guess with column one for training purposes
+			if (turn == 'Y'):
+				guessColumn = 1
+				if (random.randint(0,10) == 0): # Chance to guess other to prevent getting stuck
+					guessColumn = random.randint(0,6) 
 			gameBuffer.append(guessColumn)
 			state = Place(turn, guessColumn, grid, gameDisplay)
 		gameWinner = CheckGrid(grid, gameDisplay)
@@ -310,24 +315,6 @@ for i in range (1, nEpochs+1):
 			tieCount1 += 1
 	if not gameDisplay:
 		pbar.close()
-	print("\nYellow playing")
-	if not gameDisplay:
-		pbar = tqdm.tqdm(total = nSamples)
-		lastI = 0
-	while (samples2 < nSamples):
-		(winner, samples2, length2) = PlayGame(gameDisplay, samples2, epsilon, "Y", length2, gamePause)
-		numberOfGames2 += 1
-		if not gameDisplay:
-			pbar.update(samples2 - lastI)
-			lastI = samples2
-		if winner == 'R':
-			rWins2 += 1
-		elif winner == 'Y':
-			yWins2 += 1
-		else:
-			tieCount2 += 1
-	if not gameDisplay:
-		pbar.close()
 	array1 = np.zeros((int(nSamples),6,7,3))
 	maskarray = np.zeros((int(nSamples),7,1))
 	array2 = np.zeros((int(nSamples),7,1))
@@ -345,24 +332,3 @@ for i in range (1, nEpochs+1):
 	print ("R win ratio: ", rWins1, " to ", numberOfGames1-tieCount1, "\tPercent: ", round(100*rWins1/(numberOfGames1-tieCount1),2))
 	print("Avg game length: ", round(length1/numberOfGames1,2), "\tTie count: ", tieCount1, "\tTie Percent: ", round(100*tieCount1/numberOfGames1,2))
 	print("Epsilon: ", round(epsilon, 4))
-	array1 = np.zeros((int(nSamples),6,7,3))
-	maskarray = np.zeros((int(nSamples),7,1))
-	array2 = np.zeros((int(nSamples),7,1))
-	for (i,state) in enumerate(gameBuffer2[:nSamples]):
-		array1[i] = state[0][0]
-		maskarray[i] = state[0][1]
-		array2[i] = state[2]
-		guess = np.argmax(state[2])
-		Q = state[3]
-		if state[3] == .01:
-			Q += gamma*np.amax(Q2.predict(state[1]))
-		array2[i][guess] = Q
-	print("\nYellow Training")
-	Q2.fit(x = [array1, maskarray], y = array2, batch_size = len(array1))
-	print ("Y win ratio: ", yWins2, " to ", numberOfGames2-tieCount2, "\tPercent: ", round(100*yWins2/(numberOfGames2-tieCount2),2))
-	print("Avg game length: ", round(length2/numberOfGames2,2), "\tTie count: ", tieCount2, "\tTie Percent: ", round(100*tieCount2/numberOfGames2,2))
-	print("Epsilon: ", round(epsilon, 4))
-	epsilon *= epsilonDecay
-	Q1.save("Q1.h5")
-	Q2.save("Q2.h5")
-	print("\nUpdated weights saved")
